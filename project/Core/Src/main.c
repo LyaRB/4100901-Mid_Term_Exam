@@ -40,7 +40,19 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
+uint32_t last_press_time[3] = {0}; 	// Array que almacena el tiempo de A1, A2 y A3
+bool leftLightBlinking = false;		// Variable que indica si oprimieron dos veces o no la direccional izquierda
+bool rightLightBlinking = false;	// Variable que indica si oprimieron dos veces o no la direccional derecha
+uint32_t last_double_press = 0;		// Último registro de doble pulsación
 
+uint32_t counter_left = 0; //contadores de luz izquierda para el número de blinkings
+uint32_t counter_right = 0;//contadores de luz derecha para el numero de blinkings
+
+
+uint8_t index_pines = 0; //variable global para el control de los botones presionados
+
+bool status_stationary = false;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -53,7 +65,45 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  /* Prevent unused argument(s) compilation warning */
+  UNUSED(GPIO_Pin);
 
+  uint32_t current_time = HAL_GetTick();//variable para obtener el tiempo actual de procesamiento
+  uint8_t index_btn;	 //variable para el control del botón presionado
+
+  // Para identificar el botón presionado:
+  if(GPIO_Pin == BUTTON_LEFT){
+	  index_btn = 1;
+	  index_pines = 1;
+	  HAL_UART_Transmit(&huart2, "Luz izquierda\r\n",15,10);
+	 counter_left = 6;
+  }else if(GPIO_Pin == BUTTON_RIGHT){
+	  index_btn = 2;
+	  index_pines = 2;
+	  HAL_UART_Transmit(&huart2, "Luz derecha\r\n",13,10);
+	  counter_right = 6;
+  }
+}
+
+void turnsignalleft(void){ //función para el parpadeo de la luz izquierda
+  	static uint32_t turntoggle_tick = 0;
+  	if (turntoggle_tick < HAL_GetTick() && counter_left > 0){
+  		turntoggle_tick = HAL_GetTick()+500;
+  		HAL_GPIO_TogglePin(D1_GPIO_Port, D1_Pin);
+  		counter_left--;
+  	}
+  }
+
+  void turnsignalright(void){ //función parpadeo de la luz derecha
+  	static uint32_t turntoggle_tick = 0;
+  	if (turntoggle_tick < HAL_GetTick() && counter_right > 0){
+  		turntoggle_tick = HAL_GetTick()+500;
+  		HAL_GPIO_TogglePin(D2_GPIO_Port, D2_Pin);
+  		counter_right--;
+  	}
+  }
 /* USER CODE END 0 */
 
 /**
