@@ -42,8 +42,8 @@
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
 uint32_t last_press[3] = {0}; 	// Array que almacena el tiempo de los botones de la luz izquierda y la derecha
-bool leftLightBlinking = false;		// Variable que indica si oprimieron dos veces o no la direccional izquierda
-bool rightLightBlinking = false;	// Variable que indica si oprimieron dos veces o no la direccional derecha
+bool leftLightBlinking = false;		// Variable que indica si oprimieron dos veces o no el boton izquierdo
+bool rightLightBlinking = false;	// Variable que indica si oprimieron dos veces o no lel boton derecho
 uint32_t last_double_press = 0;		// Último registro de doble pulsación
 
 uint32_t counter_left = 0; //contadores de luz izquierda para el número de blinkings
@@ -52,7 +52,6 @@ uint32_t counter_right = 0;//contadores de luz derecha para el numero de blinkin
 
 uint8_t index_pines = 0; //variable global para el control de los botones presionados
 
-bool status_stationary = false;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -78,97 +77,95 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   if(GPIO_Pin == BUTTON_LEFT){
 	  index_btn = 1;
 	  index_pines = 1;
+	  counter_left = 6;
 	  HAL_UART_Transmit(&huart2, "Luz izquierda\r\n",15,10);
-	 counter_left = 6;
   }else if(GPIO_Pin == BUTTON_RIGHT){
 	  index_btn = 2;
 	  index_pines = 2;
+	  counter_left = 6;
 	  HAL_UART_Transmit(&huart2, "Luz derecha\r\n",13,10);
-	  counter_right = 6;
   }
 
+  // Tiempo de las dobles pulsaciones
   //lógica para las dobles pulsaciones
   if(current_time - last_press[index_btn] > 200){ //se verifica si la segunda pulsación se dio en menos del tiempo dado
- 	  last_press[index_btn] = current_time; // Actualiza el tiempo
- 	 if((index_btn == 1 || index_btn == 2)){ //se verifica si alguno de los botones fue presionado
- 		current_double_time = HAL_GetTick();
+     	  last_press[index_btn] = current_time; // Actualiza el tiempo
 
- 		if (current_double_time - last_double_press <= 300) {
-			  // Si se realizó la doble pulsación :
-			  if (index_btn == 1) {
-				  leftLightBlinking = true;		// Encender indefinidamente la luz izquierda
-				  rightLightBlinking = false;	// Apagar la derecha si estaba encendida
-				  HAL_UART_Transmit(&huart2, "Doble Izquierda\r\n", 15,10);
-			  } else if (index_btn == 2){
-				  rightLightBlinking = true;	// Encender indefinidamente la luz derecha
-				  leftLightBlinking = false;	// Apagar la izquierda si estaba encendida
-				  HAL_UART_Transmit(&huart2, "Doble Derecha\r\n", 13,10);
-		  }
- 		}else {
-		      //Si no se realizó la doble pulsación :
-			  last_double_press = current_double_time;
+     	 if((index_btn == 1 || index_btn == 2)){ //se verifica si alguno de los botones fue presionado
+     		uint32_t current_double_time = HAL_GetTick();
 
-			  // Vemos si alguna variable de doble pulsación está activada para desactivarla:
-			  if(rightLightBlinking || leftLightBlinking){
+     		if (current_double_time - last_double_press <= 300) {
+    			  // Si se realizó la doble pulsación :
+    			  if (index_btn == 1) {
+    				  leftLightBlinking = true;		// Encender indefinidamente la luz izquierda
+    				  rightLightBlinking = false;	// Apagar la derecha si estaba encendida
+    				  HAL_UART_Transmit(&huart2, "Doble Izquierda\r\n", 15,10);
+    			  } else if (index_btn == 2){
+    				  rightLightBlinking = true;	// Encender indefinidamente la luz derecha
+    				  leftLightBlinking = false;	// Apagar la izquierda si estaba encendida
+    				  HAL_UART_Transmit(&huart2, "Doble Derecha\r\n", 13,10);
+    		  }
+     		}else { //Si no se realizó la doble pulsación :
+    			  last_double_press = current_double_time;
 
-				  // Lógica para las direccionales de forma indefinida:
+    			  //comprobar si alguna luz está encendida
+    			  if(rightLightBlinking || leftLightBlinking){
 
-				  // Si la direccional derecha está encendida y se oprime el botón izquierdo:
-				  if(index_btn == 1 && rightLightBlinking){
-					  // Se apaga completamente la direccional derecha
-					  rightLightBlinking = false;
-					  cont_right = 0;
-					  HAL_UART_Transmit(&huart2, "Apagado de la direccional indefinida Derecha\r\n", 46,10);
-				  }
-				  // Si la direccional izquierda está encendida y se oprime el botón derecho:
-				  else if(index_btn == 2 && leftLightBlinking){
-					  // Se apaga completamente la direccional izquierda
-					  leftLightBlinking = false;
-					  cont_left = 0;
-					  HAL_UART_Transmit(&huart2, "Apagado de la direccional indefinida Izquierda\r\n", 48,10);
-				  }
-				  /*
-				  de lo contrario no se realiza ninguna acción y se mantiene la direccional encendida.
-				  */
-			  }else{
-				  /* Si no hay doble pulsación y no se tienen encendidas las direcionales de forma indefinida
-				   * se realizan las acciones de las direccionales de forma "normal", se encienden tres veces.
-				   */
-				  if(index_btn == 1){
-					  counter_left = 6;
-					  counter_right = 0; // Para parar el derecho cuando se presione el izquierdo
-					  HAL_UART_Transmit(&huart2, "Direccional izquierda\r\n", 23,10);
-				  }else if(index_btn == 2){
-					   counter_right = 6;
-					   counter_left = 0; // Para parar el izquierdo cuando se presione el derecho
-					  HAL_UART_Transmit(&huart2, "Direccional derecha\r\n", 21,10);
-				  }
-			  }
-		    }
-	  }
- 	 }// Tiempo de las dobles pulsaciones
+    				  // Lógica para el parpadeo de las luces de forma indefinida
+
+    				  // Si la luz derecha está encendida y se oprime el botón izquierdo, se apaga la luz derecha
+    				  if(index_btn == 1 && rightLightBlinking){
+    					  rightLightBlinking = false;
+    					  counter_right = 0;
+    					  HAL_UART_Transmit(&huart2, "Apagado de la direccional indefinida Derecha\r\n", 46,10);
+    				  }
+    				  // Si la direccional izquierda está encendida y se oprime el botón derecho:
+    				  else if(index_btn == 2 && leftLightBlinking){
+    					  // Se apaga completamente la direccional izquierda
+    					  leftLightBlinking = false;
+    					  counter_left = 0;
+    					  HAL_UART_Transmit(&huart2, "Apagado de la direccional indefinida Izquierda\r\n", 48,10);
+    				  }
+
+    			  }else{
+    				  /* Si no hay doble pulsación y no se tienen encendidas de forma indefinida, se encienden tres veces.
+    				   */
+    				  if(index_btn == 1){
+    					  counter_left = 6;
+    					  counter_right = 0; // Para parar el derecho cuando se presione el izquierdo
+    				  }else if(index_btn == 2){
+    					   counter_right = 6;
+    					   counter_left = 0; // Para parar el izquierdo cuando se presione el derecho
+    				  }
+    			  }
+    		    }
+    	  }
+     	 }
   }
-}
+
 
 void turnsignalleft(void){ //función para el parpadeo de la luz izquierda
   	static uint32_t turntoggle_tick = 0;
-  	if(counter_left > 0 ||  leftLightBlinking){
-  	if (turntoggle_tick < HAL_GetTick() && counter_left > 0){
+  	if(turntoggle_tick < HAL_GetTick()){
+  	if (counter_left > 0 /* ||  leftLightBlinking*/){
   		turntoggle_tick = HAL_GetTick()+500;
   		HAL_GPIO_TogglePin(LED_LEFT_GPIO_Port, LED_LEFT_Pin);
   		counter_left--;
-  	}
+  	}else{
+		HAL_GPIO_WritePin(LED_LEFT_GPIO_Port, LED_LEFT_Pin, 1);
   	}
   }
 
   void turnsignalright(void){ //función parpadeo de la luz derecha
   	static uint32_t turntoggle_tick = 0;
-  	if(counter_right > 0 ||  rightLightBlinking){
-  	if (turntoggle_tick < HAL_GetTick() && counter_right > 0){
+  	if(turntoggle_tick < HAL_GetTick()){
+  	if (counter_right > 0 /* ||  rightLightBlinking*/){
   		turntoggle_tick = HAL_GetTick()+500;
   		HAL_GPIO_TogglePin(LED_RIGHT_GPIO_Port, LED_RIGHT_Pin);
   		counter_right--;
-  		}
+  		}else{
+  		HAL_GPIO_WritePin(LED_RIGHT_GPIO_Port, LED_RIGHT_Pin, 1);
+
   	}
   }
 /* USER CODE END 0 */
@@ -210,15 +207,21 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-	  if(index_pines == 1){
+	 /* if(index_pines == 1){
 	  	turnsignalleft();
 
-	  	 }
+	  	 }*/
+	  if(index_pines == 1){
+	  turnsignalleft();
+	  }
+	  if(index_pines == 2){
+	  turnsignalright();
+	  }
 
-	   if(index_pines == 2){
+	   /*if(index_pines == 2){
 	  	  turnsignalright();
 
-	   }
+	   }*/
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
