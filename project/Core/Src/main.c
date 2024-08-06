@@ -104,7 +104,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     				  rightLightBlinking = true;	// Encender indefinidamente la luz derecha
     				  leftLightBlinking = false;	// Apagar la izquierda si estaba encendida
     				  HAL_UART_Transmit(&huart2, "Doble Derecha\r\n", 13,10);
-    		  }
+    		  }//ojalá funcione
      		}else { //Si no se realizó la doble pulsación :
     			  last_double_press = current_double_time;
 
