@@ -41,7 +41,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
-uint32_t last_press_time[3] = {0}; 	// Array que almacena el tiempo de A1, A2 y A3
+uint32_t last_press[3] = {0}; 	// Array que almacena el tiempo de los botones de la luz izquierda y la derecha
 bool leftLightBlinking = false;		// Variable que indica si oprimieron dos veces o no la direccional izquierda
 bool rightLightBlinking = false;	// Variable que indica si oprimieron dos veces o no la direccional derecha
 uint32_t last_double_press = 0;		// Último registro de doble pulsación
@@ -71,7 +71,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   UNUSED(GPIO_Pin);
 
   uint32_t current_time = HAL_GetTick();//variable para obtener el tiempo actual de procesamiento
-  uint8_t index_btn;	 //variable para el control del botón presionado
+  uint8_t index_btn;//variable para el control del botón presionado
+  uint32_t current_double_time; //variable de control para las dobles pulsaciones
 
   // Para identificar el botón presionado:
   if(GPIO_Pin == BUTTON_LEFT){
@@ -85,13 +86,34 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	  HAL_UART_Transmit(&huart2, "Luz derecha\r\n",13,10);
 	  counter_right = 6;
   }
+
+  //lógica para las dobles pulsaciones
+  if(current_time - last_press[index_btn] > 200){ //se verifica si la segunda pulsación se dio en menos del tiempo dado
+ 	  last_press[index_btn] = current_time; // Actualiza el tiempo
+ 	 if((index_btn == 1 || index_btn == 2)){ //se verifica si alguno de los botones fue presionado
+ 		current_double_time = HAL_GetTick();
+
+ 		if (current_double_time - last_double_press <= 300) {
+			  // Si se realizó la doble pulsación :
+			  if (index_btn == 0) {
+				  leftLightBlinking = true;		// Encender indefinidamente la luz izquierda
+				  rightLightBlinking = false;	// Apagar la derecha si estaba encendida
+				  HAL_UART_Transmit(&huart2, "Doble Izquierda\r\n", 15,10);
+			  } else {
+				  rightLightBlinking = true;	// Encender indefinidamente la luz derecha
+				  leftLightBlinking = false;	// Apagar la izquierda si estaba encendida
+				  HAL_UART_Transmit(&huart2, "Doble Derecha\r\n", 13,10);
+		  }
+ 		}
+ 	 }// Tiempo de las dobles pulsaciones
+  }
 }
 
 void turnsignalleft(void){ //función para el parpadeo de la luz izquierda
   	static uint32_t turntoggle_tick = 0;
   	if (turntoggle_tick < HAL_GetTick() && counter_left > 0){
   		turntoggle_tick = HAL_GetTick()+500;
-  		HAL_GPIO_TogglePin(D1_GPIO_Port, D1_Pin);
+  		HAL_GPIO_TogglePin(LED_LEFT_GPIO_Port, LED_LEFT_Pin);
   		counter_left--;
   	}
   }
@@ -100,7 +122,7 @@ void turnsignalleft(void){ //función para el parpadeo de la luz izquierda
   	static uint32_t turntoggle_tick = 0;
   	if (turntoggle_tick < HAL_GetTick() && counter_right > 0){
   		turntoggle_tick = HAL_GetTick()+500;
-  		HAL_GPIO_TogglePin(D2_GPIO_Port, D2_Pin);
+  		HAL_GPIO_TogglePin(LED_RIGHT_GPIO_Port, LED_RIGHT_Pin);
   		counter_right--;
   	}
   }
@@ -143,7 +165,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  if(index_pines == 1){
+	  	turnsignalleft();
 
+	  	 }
+
+	   if(index_pines == 2){
+	  	  turnsignalright();
+
+	   }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
